@@ -4516,12 +4516,17 @@ open class Team {
         public let membershipType: Team.TeamMembershipType
         /// The date and time the user joined as a member of a specific team.
         public let joinedOn: Date?
+        /// The date and time the user was suspended from the team (contains value only when the member's status matches
+        /// suspended in TeamMemberStatus.
+        public let suspendedOn: Date?
         /// Persistent ID that a team can attach to the user. The persistent ID is unique ID to be used for SAML
         /// authentication.
         public let persistentId: String?
         /// Whether the user is a directory restricted user.
         public let isDirectoryRestricted: Bool?
-        public init(teamMemberId: String, email: String, emailVerified: Bool, status: Team.TeamMemberStatus, name: Users.Name, membershipType: Team.TeamMembershipType, externalId: String? = nil, accountId: String? = nil, joinedOn: Date? = nil, persistentId: String? = nil, isDirectoryRestricted: Bool? = nil) {
+        /// URL for the photo representing the user, if one is set.
+        public let profilePhotoUrl: String?
+        public init(teamMemberId: String, email: String, emailVerified: Bool, status: Team.TeamMemberStatus, name: Users.Name, membershipType: Team.TeamMembershipType, externalId: String? = nil, accountId: String? = nil, joinedOn: Date? = nil, suspendedOn: Date? = nil, persistentId: String? = nil, isDirectoryRestricted: Bool? = nil, profilePhotoUrl: String? = nil) {
             stringValidator()(teamMemberId)
             self.teamMemberId = teamMemberId
             nullableValidator(stringValidator())(externalId)
@@ -4535,9 +4540,12 @@ open class Team {
             self.name = name
             self.membershipType = membershipType
             self.joinedOn = joinedOn
+            self.suspendedOn = suspendedOn
             nullableValidator(stringValidator())(persistentId)
             self.persistentId = persistentId
             self.isDirectoryRestricted = isDirectoryRestricted
+            nullableValidator(stringValidator())(profilePhotoUrl)
+            self.profilePhotoUrl = profilePhotoUrl
         }
         open var description: String {
             return "\(SerializeUtil.prepareJSONForSerialization(MemberProfileSerializer().serialize(self)))"
@@ -4556,8 +4564,10 @@ open class Team {
             "external_id": NullableSerializer(Serialization._StringSerializer).serialize(value.externalId),
             "account_id": NullableSerializer(Serialization._StringSerializer).serialize(value.accountId),
             "joined_on": NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).serialize(value.joinedOn),
+            "suspended_on": NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).serialize(value.suspendedOn),
             "persistent_id": NullableSerializer(Serialization._StringSerializer).serialize(value.persistentId),
             "is_directory_restricted": NullableSerializer(Serialization._BoolSerializer).serialize(value.isDirectoryRestricted),
+            "profile_photo_url": NullableSerializer(Serialization._StringSerializer).serialize(value.profilePhotoUrl),
             ]
             return .dictionary(output)
         }
@@ -4573,9 +4583,11 @@ open class Team {
                     let externalId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["external_id"] ?? .null)
                     let accountId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["account_id"] ?? .null)
                     let joinedOn = NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).deserialize(dict["joined_on"] ?? .null)
+                    let suspendedOn = NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).deserialize(dict["suspended_on"] ?? .null)
                     let persistentId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["persistent_id"] ?? .null)
                     let isDirectoryRestricted = NullableSerializer(Serialization._BoolSerializer).deserialize(dict["is_directory_restricted"] ?? .null)
-                    return MemberProfile(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, externalId: externalId, accountId: accountId, joinedOn: joinedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted)
+                    let profilePhotoUrl = NullableSerializer(Serialization._StringSerializer).deserialize(dict["profile_photo_url"] ?? .null)
+                    return MemberProfile(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, externalId: externalId, accountId: accountId, joinedOn: joinedOn, suspendedOn: suspendedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted, profilePhotoUrl: profilePhotoUrl)
                 default:
                     fatalError("Type error deserializing")
             }
@@ -8647,12 +8659,12 @@ open class Team {
         public let groups: Array<String>
         /// The namespace id of the user's root folder.
         public let memberFolderId: String
-        public init(teamMemberId: String, email: String, emailVerified: Bool, status: Team.TeamMemberStatus, name: Users.Name, membershipType: Team.TeamMembershipType, groups: Array<String>, memberFolderId: String, externalId: String? = nil, accountId: String? = nil, joinedOn: Date? = nil, persistentId: String? = nil, isDirectoryRestricted: Bool? = nil) {
+        public init(teamMemberId: String, email: String, emailVerified: Bool, status: Team.TeamMemberStatus, name: Users.Name, membershipType: Team.TeamMembershipType, groups: Array<String>, memberFolderId: String, externalId: String? = nil, accountId: String? = nil, joinedOn: Date? = nil, suspendedOn: Date? = nil, persistentId: String? = nil, isDirectoryRestricted: Bool? = nil, profilePhotoUrl: String? = nil) {
             arrayValidator(itemValidator: stringValidator())(groups)
             self.groups = groups
             stringValidator(pattern: "[-_0-9a-zA-Z:]+")(memberFolderId)
             self.memberFolderId = memberFolderId
-            super.init(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, externalId: externalId, accountId: accountId, joinedOn: joinedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted)
+            super.init(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, externalId: externalId, accountId: accountId, joinedOn: joinedOn, suspendedOn: suspendedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted, profilePhotoUrl: profilePhotoUrl)
         }
         open override var description: String {
             return "\(SerializeUtil.prepareJSONForSerialization(TeamMemberProfileSerializer().serialize(self)))"
@@ -8673,8 +8685,10 @@ open class Team {
             "external_id": NullableSerializer(Serialization._StringSerializer).serialize(value.externalId),
             "account_id": NullableSerializer(Serialization._StringSerializer).serialize(value.accountId),
             "joined_on": NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).serialize(value.joinedOn),
+            "suspended_on": NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).serialize(value.suspendedOn),
             "persistent_id": NullableSerializer(Serialization._StringSerializer).serialize(value.persistentId),
             "is_directory_restricted": NullableSerializer(Serialization._BoolSerializer).serialize(value.isDirectoryRestricted),
+            "profile_photo_url": NullableSerializer(Serialization._StringSerializer).serialize(value.profilePhotoUrl),
             ]
             return .dictionary(output)
         }
@@ -8692,9 +8706,11 @@ open class Team {
                     let externalId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["external_id"] ?? .null)
                     let accountId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["account_id"] ?? .null)
                     let joinedOn = NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).deserialize(dict["joined_on"] ?? .null)
+                    let suspendedOn = NullableSerializer(NSDateSerializer("%Y-%m-%dT%H:%M:%SZ")).deserialize(dict["suspended_on"] ?? .null)
                     let persistentId = NullableSerializer(Serialization._StringSerializer).deserialize(dict["persistent_id"] ?? .null)
                     let isDirectoryRestricted = NullableSerializer(Serialization._BoolSerializer).deserialize(dict["is_directory_restricted"] ?? .null)
-                    return TeamMemberProfile(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, groups: groups, memberFolderId: memberFolderId, externalId: externalId, accountId: accountId, joinedOn: joinedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted)
+                    let profilePhotoUrl = NullableSerializer(Serialization._StringSerializer).deserialize(dict["profile_photo_url"] ?? .null)
+                    return TeamMemberProfile(teamMemberId: teamMemberId, email: email, emailVerified: emailVerified, status: status, name: name, membershipType: membershipType, groups: groups, memberFolderId: memberFolderId, externalId: externalId, accountId: accountId, joinedOn: joinedOn, suspendedOn: suspendedOn, persistentId: persistentId, isDirectoryRestricted: isDirectoryRestricted, profilePhotoUrl: profilePhotoUrl)
                 default:
                     fatalError("Type error deserializing")
             }
@@ -9000,6 +9016,65 @@ open class Team {
                     return TeamNamespacesListResult(namespaces: namespaces, cursor: cursor, hasMore: hasMore)
                 default:
                     fatalError("Type error deserializing")
+            }
+        }
+    }
+
+    /// The TeamReportFailureReason union
+    public enum TeamReportFailureReason: CustomStringConvertible {
+        /// We couldn't create the report, but we think this was a fluke. Everything should work if you try it again.
+        case temporaryError
+        /// Too many other reports are being created right now. Try creating this report again once the others finish.
+        case manyReportsAtOnce
+        /// We couldn't create the report. Try creating the report again with less data.
+        case tooMuchData
+        /// An unspecified error.
+        case other
+
+        public var description: String {
+            return "\(SerializeUtil.prepareJSONForSerialization(TeamReportFailureReasonSerializer().serialize(self)))"
+        }
+    }
+    open class TeamReportFailureReasonSerializer: JSONSerializer {
+        public init() { }
+        open func serialize(_ value: TeamReportFailureReason) -> JSON {
+            switch value {
+                case .temporaryError:
+                    var d = [String: JSON]()
+                    d[".tag"] = .str("temporary_error")
+                    return .dictionary(d)
+                case .manyReportsAtOnce:
+                    var d = [String: JSON]()
+                    d[".tag"] = .str("many_reports_at_once")
+                    return .dictionary(d)
+                case .tooMuchData:
+                    var d = [String: JSON]()
+                    d[".tag"] = .str("too_much_data")
+                    return .dictionary(d)
+                case .other:
+                    var d = [String: JSON]()
+                    d[".tag"] = .str("other")
+                    return .dictionary(d)
+            }
+        }
+        open func deserialize(_ json: JSON) -> TeamReportFailureReason {
+            switch json {
+                case .dictionary(let d):
+                    let tag = Serialization.getTag(d)
+                    switch tag {
+                        case "temporary_error":
+                            return TeamReportFailureReason.temporaryError
+                        case "many_reports_at_once":
+                            return TeamReportFailureReason.manyReportsAtOnce
+                        case "too_much_data":
+                            return TeamReportFailureReason.tooMuchData
+                        case "other":
+                            return TeamReportFailureReason.other
+                        default:
+                            return TeamReportFailureReason.other
+                    }
+                default:
+                    fatalError("Failed to deserialize")
             }
         }
     }
@@ -9331,7 +9406,8 @@ open class Team {
         argSerializer: Team.ListMemberDevicesArgSerializer(),
         responseSerializer: Team.ListMemberDevicesResultSerializer(),
         errorSerializer: Team.ListMemberDevicesErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let devicesListMembersDevices = Route(
@@ -9342,7 +9418,8 @@ open class Team {
         argSerializer: Team.ListMembersDevicesArgSerializer(),
         responseSerializer: Team.ListMembersDevicesResultSerializer(),
         errorSerializer: Team.ListMembersDevicesErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let devicesListTeamDevices = Route(
@@ -9353,7 +9430,8 @@ open class Team {
         argSerializer: Team.ListTeamDevicesArgSerializer(),
         responseSerializer: Team.ListTeamDevicesResultSerializer(),
         errorSerializer: Team.ListTeamDevicesErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let devicesRevokeDeviceSession = Route(
@@ -9364,7 +9442,8 @@ open class Team {
         argSerializer: Team.RevokeDeviceSessionArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.RevokeDeviceSessionErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let devicesRevokeDeviceSessionBatch = Route(
@@ -9375,7 +9454,8 @@ open class Team {
         argSerializer: Team.RevokeDeviceSessionBatchArgSerializer(),
         responseSerializer: Team.RevokeDeviceSessionBatchResultSerializer(),
         errorSerializer: Team.RevokeDeviceSessionBatchErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let featuresGetValues = Route(
@@ -9386,7 +9466,8 @@ open class Team {
         argSerializer: Team.FeaturesGetValuesBatchArgSerializer(),
         responseSerializer: Team.FeaturesGetValuesBatchResultSerializer(),
         errorSerializer: Team.FeaturesGetValuesBatchErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let getInfo = Route(
@@ -9397,7 +9478,8 @@ open class Team {
         argSerializer: Serialization._VoidSerializer,
         responseSerializer: Team.TeamGetInfoResultSerializer(),
         errorSerializer: Serialization._VoidSerializer,
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsCreate = Route(
@@ -9408,7 +9490,8 @@ open class Team {
         argSerializer: Team.GroupCreateArgSerializer(),
         responseSerializer: Team.GroupFullInfoSerializer(),
         errorSerializer: Team.GroupCreateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsDelete = Route(
@@ -9419,7 +9502,8 @@ open class Team {
         argSerializer: Team.GroupSelectorSerializer(),
         responseSerializer: Async.LaunchEmptyResultSerializer(),
         errorSerializer: Team.GroupDeleteErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsGetInfo = Route(
@@ -9430,7 +9514,8 @@ open class Team {
         argSerializer: Team.GroupsSelectorSerializer(),
         responseSerializer: ArraySerializer(Team.GroupsGetInfoItemSerializer()),
         errorSerializer: Team.GroupsGetInfoErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsJobStatusGet = Route(
@@ -9441,7 +9526,8 @@ open class Team {
         argSerializer: Async.PollArgSerializer(),
         responseSerializer: Async.PollEmptyResultSerializer(),
         errorSerializer: Team.GroupsPollErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsList = Route(
@@ -9452,7 +9538,8 @@ open class Team {
         argSerializer: Team.GroupsListArgSerializer(),
         responseSerializer: Team.GroupsListResultSerializer(),
         errorSerializer: Serialization._VoidSerializer,
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsListContinue = Route(
@@ -9463,7 +9550,8 @@ open class Team {
         argSerializer: Team.GroupsListContinueArgSerializer(),
         responseSerializer: Team.GroupsListResultSerializer(),
         errorSerializer: Team.GroupsListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsMembersAdd = Route(
@@ -9474,7 +9562,8 @@ open class Team {
         argSerializer: Team.GroupMembersAddArgSerializer(),
         responseSerializer: Team.GroupMembersChangeResultSerializer(),
         errorSerializer: Team.GroupMembersAddErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsMembersList = Route(
@@ -9485,7 +9574,8 @@ open class Team {
         argSerializer: Team.GroupsMembersListArgSerializer(),
         responseSerializer: Team.GroupsMembersListResultSerializer(),
         errorSerializer: Team.GroupSelectorErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsMembersListContinue = Route(
@@ -9496,7 +9586,8 @@ open class Team {
         argSerializer: Team.GroupsMembersListContinueArgSerializer(),
         responseSerializer: Team.GroupsMembersListResultSerializer(),
         errorSerializer: Team.GroupsMembersListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsMembersRemove = Route(
@@ -9507,7 +9598,8 @@ open class Team {
         argSerializer: Team.GroupMembersRemoveArgSerializer(),
         responseSerializer: Team.GroupMembersChangeResultSerializer(),
         errorSerializer: Team.GroupMembersRemoveErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsMembersSetAccessType = Route(
@@ -9518,7 +9610,8 @@ open class Team {
         argSerializer: Team.GroupMembersSetAccessTypeArgSerializer(),
         responseSerializer: ArraySerializer(Team.GroupsGetInfoItemSerializer()),
         errorSerializer: Team.GroupMemberSetAccessTypeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let groupsUpdate = Route(
@@ -9529,7 +9622,8 @@ open class Team {
         argSerializer: Team.GroupUpdateArgsSerializer(),
         responseSerializer: Team.GroupFullInfoSerializer(),
         errorSerializer: Team.GroupUpdateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let linkedAppsListMemberLinkedApps = Route(
@@ -9540,7 +9634,8 @@ open class Team {
         argSerializer: Team.ListMemberAppsArgSerializer(),
         responseSerializer: Team.ListMemberAppsResultSerializer(),
         errorSerializer: Team.ListMemberAppsErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let linkedAppsListMembersLinkedApps = Route(
@@ -9551,7 +9646,8 @@ open class Team {
         argSerializer: Team.ListMembersAppsArgSerializer(),
         responseSerializer: Team.ListMembersAppsResultSerializer(),
         errorSerializer: Team.ListMembersAppsErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let linkedAppsListTeamLinkedApps = Route(
@@ -9562,7 +9658,8 @@ open class Team {
         argSerializer: Team.ListTeamAppsArgSerializer(),
         responseSerializer: Team.ListTeamAppsResultSerializer(),
         errorSerializer: Team.ListTeamAppsErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let linkedAppsRevokeLinkedApp = Route(
@@ -9573,7 +9670,8 @@ open class Team {
         argSerializer: Team.RevokeLinkedApiAppArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.RevokeLinkedAppErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let linkedAppsRevokeLinkedAppBatch = Route(
@@ -9584,7 +9682,8 @@ open class Team {
         argSerializer: Team.RevokeLinkedApiAppBatchArgSerializer(),
         responseSerializer: Team.RevokeLinkedAppBatchResultSerializer(),
         errorSerializer: Team.RevokeLinkedAppBatchErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsExcludedUsersAdd = Route(
@@ -9595,7 +9694,8 @@ open class Team {
         argSerializer: Team.ExcludedUsersUpdateArgSerializer(),
         responseSerializer: Team.ExcludedUsersUpdateResultSerializer(),
         errorSerializer: Team.ExcludedUsersUpdateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsExcludedUsersList = Route(
@@ -9606,7 +9706,8 @@ open class Team {
         argSerializer: Team.ExcludedUsersListArgSerializer(),
         responseSerializer: Team.ExcludedUsersListResultSerializer(),
         errorSerializer: Team.ExcludedUsersListErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsExcludedUsersListContinue = Route(
@@ -9617,7 +9718,8 @@ open class Team {
         argSerializer: Team.ExcludedUsersListContinueArgSerializer(),
         responseSerializer: Team.ExcludedUsersListResultSerializer(),
         errorSerializer: Team.ExcludedUsersListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsExcludedUsersRemove = Route(
@@ -9628,7 +9730,8 @@ open class Team {
         argSerializer: Team.ExcludedUsersUpdateArgSerializer(),
         responseSerializer: Team.ExcludedUsersUpdateResultSerializer(),
         errorSerializer: Team.ExcludedUsersUpdateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsGetCustomQuota = Route(
@@ -9639,7 +9742,8 @@ open class Team {
         argSerializer: Team.CustomQuotaUsersArgSerializer(),
         responseSerializer: ArraySerializer(Team.CustomQuotaResultSerializer()),
         errorSerializer: Team.CustomQuotaErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsRemoveCustomQuota = Route(
@@ -9650,7 +9754,8 @@ open class Team {
         argSerializer: Team.CustomQuotaUsersArgSerializer(),
         responseSerializer: ArraySerializer(Team.RemoveCustomQuotaResultSerializer()),
         errorSerializer: Team.CustomQuotaErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let memberSpaceLimitsSetCustomQuota = Route(
@@ -9661,7 +9766,8 @@ open class Team {
         argSerializer: Team.SetCustomQuotaArgSerializer(),
         responseSerializer: ArraySerializer(Team.CustomQuotaResultSerializer()),
         errorSerializer: Team.SetCustomQuotaErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersAdd = Route(
@@ -9672,7 +9778,8 @@ open class Team {
         argSerializer: Team.MembersAddArgSerializer(),
         responseSerializer: Team.MembersAddLaunchSerializer(),
         errorSerializer: Serialization._VoidSerializer,
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersAddJobStatusGet = Route(
@@ -9683,7 +9790,8 @@ open class Team {
         argSerializer: Async.PollArgSerializer(),
         responseSerializer: Team.MembersAddJobStatusSerializer(),
         errorSerializer: Async.PollErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersGetInfo = Route(
@@ -9694,7 +9802,8 @@ open class Team {
         argSerializer: Team.MembersGetInfoArgsSerializer(),
         responseSerializer: ArraySerializer(Team.MembersGetInfoItemSerializer()),
         errorSerializer: Team.MembersGetInfoErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersList = Route(
@@ -9705,7 +9814,8 @@ open class Team {
         argSerializer: Team.MembersListArgSerializer(),
         responseSerializer: Team.MembersListResultSerializer(),
         errorSerializer: Team.MembersListErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersListContinue = Route(
@@ -9716,7 +9826,8 @@ open class Team {
         argSerializer: Team.MembersListContinueArgSerializer(),
         responseSerializer: Team.MembersListResultSerializer(),
         errorSerializer: Team.MembersListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersMoveFormerMemberFiles = Route(
@@ -9727,7 +9838,8 @@ open class Team {
         argSerializer: Team.MembersDataTransferArgSerializer(),
         responseSerializer: Async.LaunchEmptyResultSerializer(),
         errorSerializer: Team.MembersTransferFormerMembersFilesErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersMoveFormerMemberFilesJobStatusCheck = Route(
@@ -9738,7 +9850,8 @@ open class Team {
         argSerializer: Async.PollArgSerializer(),
         responseSerializer: Async.PollEmptyResultSerializer(),
         errorSerializer: Async.PollErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersRecover = Route(
@@ -9749,7 +9862,8 @@ open class Team {
         argSerializer: Team.MembersRecoverArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.MembersRecoverErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersRemove = Route(
@@ -9760,7 +9874,8 @@ open class Team {
         argSerializer: Team.MembersRemoveArgSerializer(),
         responseSerializer: Async.LaunchEmptyResultSerializer(),
         errorSerializer: Team.MembersRemoveErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersRemoveJobStatusGet = Route(
@@ -9771,7 +9886,8 @@ open class Team {
         argSerializer: Async.PollArgSerializer(),
         responseSerializer: Async.PollEmptyResultSerializer(),
         errorSerializer: Async.PollErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersSendWelcomeEmail = Route(
@@ -9782,7 +9898,8 @@ open class Team {
         argSerializer: Team.UserSelectorArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.MembersSendWelcomeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersSetAdminPermissions = Route(
@@ -9793,7 +9910,8 @@ open class Team {
         argSerializer: Team.MembersSetPermissionsArgSerializer(),
         responseSerializer: Team.MembersSetPermissionsResultSerializer(),
         errorSerializer: Team.MembersSetPermissionsErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersSetProfile = Route(
@@ -9804,7 +9922,8 @@ open class Team {
         argSerializer: Team.MembersSetProfileArgSerializer(),
         responseSerializer: Team.TeamMemberInfoSerializer(),
         errorSerializer: Team.MembersSetProfileErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersSuspend = Route(
@@ -9815,7 +9934,8 @@ open class Team {
         argSerializer: Team.MembersDeactivateArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.MembersSuspendErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let membersUnsuspend = Route(
@@ -9826,7 +9946,8 @@ open class Team {
         argSerializer: Team.MembersUnsuspendArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.MembersUnsuspendErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let namespacesList = Route(
@@ -9837,7 +9958,8 @@ open class Team {
         argSerializer: Team.TeamNamespacesListArgSerializer(),
         responseSerializer: Team.TeamNamespacesListResultSerializer(),
         errorSerializer: Team.TeamNamespacesListErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let namespacesListContinue = Route(
@@ -9848,7 +9970,8 @@ open class Team {
         argSerializer: Team.TeamNamespacesListContinueArgSerializer(),
         responseSerializer: Team.TeamNamespacesListResultSerializer(),
         errorSerializer: Team.TeamNamespacesListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let propertiesTemplateAdd = Route(
@@ -9859,7 +9982,8 @@ open class Team {
         argSerializer: FileProperties.AddTemplateArgSerializer(),
         responseSerializer: FileProperties.AddTemplateResultSerializer(),
         errorSerializer: FileProperties.ModifyTemplateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let propertiesTemplateGet = Route(
@@ -9870,7 +9994,8 @@ open class Team {
         argSerializer: FileProperties.GetTemplateArgSerializer(),
         responseSerializer: FileProperties.GetTemplateResultSerializer(),
         errorSerializer: FileProperties.TemplateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let propertiesTemplateList = Route(
@@ -9881,7 +10006,8 @@ open class Team {
         argSerializer: Serialization._VoidSerializer,
         responseSerializer: FileProperties.ListTemplateResultSerializer(),
         errorSerializer: FileProperties.TemplateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let propertiesTemplateUpdate = Route(
@@ -9892,7 +10018,8 @@ open class Team {
         argSerializer: FileProperties.UpdateTemplateArgSerializer(),
         responseSerializer: FileProperties.UpdateTemplateResultSerializer(),
         errorSerializer: FileProperties.ModifyTemplateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let reportsGetActivity = Route(
@@ -9903,7 +10030,8 @@ open class Team {
         argSerializer: Team.DateRangeSerializer(),
         responseSerializer: Team.GetActivityReportSerializer(),
         errorSerializer: Team.DateRangeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let reportsGetDevices = Route(
@@ -9914,7 +10042,8 @@ open class Team {
         argSerializer: Team.DateRangeSerializer(),
         responseSerializer: Team.GetDevicesReportSerializer(),
         errorSerializer: Team.DateRangeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let reportsGetMembership = Route(
@@ -9925,7 +10054,8 @@ open class Team {
         argSerializer: Team.DateRangeSerializer(),
         responseSerializer: Team.GetMembershipReportSerializer(),
         errorSerializer: Team.DateRangeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let reportsGetStorage = Route(
@@ -9936,7 +10066,8 @@ open class Team {
         argSerializer: Team.DateRangeSerializer(),
         responseSerializer: Team.GetStorageReportSerializer(),
         errorSerializer: Team.DateRangeErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderActivate = Route(
@@ -9947,7 +10078,8 @@ open class Team {
         argSerializer: Team.TeamFolderIdArgSerializer(),
         responseSerializer: Team.TeamFolderMetadataSerializer(),
         errorSerializer: Team.TeamFolderActivateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderArchive = Route(
@@ -9958,7 +10090,8 @@ open class Team {
         argSerializer: Team.TeamFolderArchiveArgSerializer(),
         responseSerializer: Team.TeamFolderArchiveLaunchSerializer(),
         errorSerializer: Team.TeamFolderArchiveErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderArchiveCheck = Route(
@@ -9969,7 +10102,8 @@ open class Team {
         argSerializer: Async.PollArgSerializer(),
         responseSerializer: Team.TeamFolderArchiveJobStatusSerializer(),
         errorSerializer: Async.PollErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderCreate = Route(
@@ -9980,7 +10114,8 @@ open class Team {
         argSerializer: Team.TeamFolderCreateArgSerializer(),
         responseSerializer: Team.TeamFolderMetadataSerializer(),
         errorSerializer: Team.TeamFolderCreateErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderGetInfo = Route(
@@ -9991,7 +10126,8 @@ open class Team {
         argSerializer: Team.TeamFolderIdListArgSerializer(),
         responseSerializer: ArraySerializer(Team.TeamFolderGetInfoItemSerializer()),
         errorSerializer: Serialization._VoidSerializer,
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderList = Route(
@@ -10002,7 +10138,8 @@ open class Team {
         argSerializer: Team.TeamFolderListArgSerializer(),
         responseSerializer: Team.TeamFolderListResultSerializer(),
         errorSerializer: Team.TeamFolderListErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderListContinue = Route(
@@ -10013,7 +10150,8 @@ open class Team {
         argSerializer: Team.TeamFolderListContinueArgSerializer(),
         responseSerializer: Team.TeamFolderListResultSerializer(),
         errorSerializer: Team.TeamFolderListContinueErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderPermanentlyDelete = Route(
@@ -10024,7 +10162,8 @@ open class Team {
         argSerializer: Team.TeamFolderIdArgSerializer(),
         responseSerializer: Serialization._VoidSerializer,
         errorSerializer: Team.TeamFolderPermanentlyDeleteErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderRename = Route(
@@ -10035,7 +10174,8 @@ open class Team {
         argSerializer: Team.TeamFolderRenameArgSerializer(),
         responseSerializer: Team.TeamFolderMetadataSerializer(),
         errorSerializer: Team.TeamFolderRenameErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let teamFolderUpdateSyncSettings = Route(
@@ -10046,7 +10186,8 @@ open class Team {
         argSerializer: Team.TeamFolderUpdateSyncSettingsArgSerializer(),
         responseSerializer: Team.TeamFolderMetadataSerializer(),
         errorSerializer: Team.TeamFolderUpdateSyncSettingsErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
     static let tokenGetAuthenticatedAdmin = Route(
@@ -10057,7 +10198,8 @@ open class Team {
         argSerializer: Serialization._VoidSerializer,
         responseSerializer: Team.TokenGetAuthenticatedAdminResultSerializer(),
         errorSerializer: Team.TokenGetAuthenticatedAdminErrorSerializer(),
-        attrs: ["host": "api",
+        attrs: ["auth": "team",
+                "host": "api",
                 "style": "rpc"]
     )
 }
